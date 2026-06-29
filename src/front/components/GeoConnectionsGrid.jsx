@@ -1,57 +1,23 @@
 import { useState, useEffect } from "react";
 
 // ---------------------------------------------------------------------------
-// SAMPLE PUZZLE DATA
+// STYLES
 // ---------------------------------------------------------------------------
-const puzzleGroups = [
-  {
-    groupId: "landlocked-south-america",
-    traitLabel: "Landlocked countries in South America",
-    difficultyTier: 1,
-    countryNames: ["Bolivia", "Paraguay", "Lesotho", "Eswatini"],
-  },
-  {
-    groupId: "capital-named-after-founder",
-    traitLabel: "Capitals named after a person",
-    difficultyTier: 2,
-    countryNames: ["Washington D.C.", "Victoria", "Bolivar", "Maximilianopolis"],
-  },
-  {
-    groupId: "crosses-equator",
-    traitLabel: "Countries the equator passes through",
-    difficultyTier: 3,
-    countryNames: ["Ecuador", "Kenya", "Brazil", "Colombia"],
-  },
-  {
-    groupId: "former-dutch-colonies",
-    traitLabel: "Former Dutch colonies",
-    difficultyTier: 4,
-    countryNames: ["Indonesia", "Suriname", "South Africa", "Sri Lanka"],
-  },
-];
-
-// Difficulty tier colors — yellow through purple, matching Connections convention
-const difficultyTierStyles = {
-  1: { background: "#f9df6d", border: "#e0c84a", label: "#5a4a00" },
-  2: { background: "#a0c35a", border: "#7da33a", label: "#2a3d10" },
-  3: { background: "#6aacdb", border: "#4a8cbb", label: "#0d2a40" },
-  4: { background: "#c084d4", border: "#a060b4", label: "#2d0a40" },
-};
-
-const maxAllowedMistakes = 4;
-
-// Injected once — handles hover + transition effects that can't be done inline
 const componentStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap');
 
   .geo-wrapper {
-    background: #f5f3ee;
     min-height: 100vh;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding: 48px 16px;
     font-family: 'Inter', sans-serif;
+    background: #f5f3ee;
+    transition: background 0.3s ease;
+  }
+  .geo-wrapper.geo-dark {
+    background: #0f1923;
   }
   .geo-card {
     background: #ffffff;
@@ -60,6 +26,12 @@ const componentStyles = `
     padding: 36px 32px 28px;
     width: 100%;
     max-width: 480px;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+  }
+  .geo-dark .geo-card {
+    background: #1a2535;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
   }
   .geo-title {
     font-family: 'Playfair Display', serif;
@@ -68,6 +40,10 @@ const componentStyles = `
     letter-spacing: -0.5px;
     margin-bottom: 4px;
     text-align: center;
+    transition: color 0.3s ease;
+  }
+  .geo-dark .geo-title {
+    color: #e0ddd6;
   }
   .geo-subtitle {
     font-size: 0.82rem;
@@ -75,11 +51,47 @@ const componentStyles = `
     text-align: center;
     margin-bottom: 24px;
   }
+  .geo-dark .geo-subtitle {
+    color: #8a9ab0;
+  }
   .geo-divider {
     border: none;
     border-top: 1px solid #e0ddd6;
     margin: 0 0 16px;
+    transition: border-color 0.3s ease;
   }
+  .geo-dark .geo-divider {
+    border-top-color: #2d3d54;
+  }
+
+  /* Dark mode toggle button */
+  .geo-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: 2px solid #dedad2;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: #7a8694;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  }
+  .geo-toggle:hover {
+    border-color: #1e3a5f;
+    color: #1e3a5f;
+  }
+  .geo-dark .geo-toggle {
+    border-color: #2d3d54;
+    color: #8a9ab0;
+  }
+  .geo-dark .geo-toggle:hover {
+    border-color: #4a90d9;
+    color: #4a90d9;
+  }
+
   .geo-tile {
     aspect-ratio: 1 / 1;
     width: 100%;
@@ -110,6 +122,22 @@ const componentStyles = `
     color: #ffffff;
     transform: translateY(-2px);
   }
+  .geo-dark .geo-tile {
+    background: #243044;
+    border-color: #2d3d54;
+    color: #e0ddd6;
+  }
+  .geo-dark .geo-tile:hover:not(.geo-tile--selected) {
+    background: #2d3d54;
+    border-color: #3d5070;
+    transform: translateY(-2px);
+  }
+  .geo-dark .geo-tile--selected {
+    background: #4a90d9;
+    border-color: #4a90d9;
+    color: #ffffff;
+  }
+
   .geo-solved-row {
     border-radius: 10px;
     padding: 12px 16px;
@@ -132,6 +160,10 @@ const componentStyles = `
     font-weight: 600;
     color: #1e3a5f;
     min-height: 20px;
+    transition: color 0.3s ease;
+  }
+  .geo-dark .geo-feedback {
+    color: #4a90d9;
   }
   .geo-mistake-dot {
     width: 11px;
@@ -141,12 +173,21 @@ const componentStyles = `
     margin-left: 4px;
     transition: background 0.2s ease;
   }
-  .geo-mistake-dot--used {
-    background: #1e3a5f;
+  .geo-mistake-dot--used { background: #1e3a5f; }
+  .geo-mistake-dot--empty { background: #dedad2; }
+  .geo-dark .geo-mistake-dot--used { background: #4a90d9; }
+  .geo-dark .geo-mistake-dot--empty { background: #2d3d54; }
+
+  .geo-mistakes-label {
+    font-size: 0.75rem;
+    color: #7a8694;
+    margin-right: 6px;
+    transition: color 0.3s ease;
   }
-  .geo-mistake-dot--empty {
-    background: #dedad2;
+  .geo-dark .geo-mistakes-label {
+    color: #8a9ab0;
   }
+
   .geo-submit {
     width: 100%;
     border-radius: 999px;
@@ -155,40 +196,51 @@ const componentStyles = `
     font-size: 0.9rem;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     font-family: 'Inter', sans-serif;
   }
-  .geo-submit--active {
-    background: #1e3a5f;
-    color: #ffffff;
-    border-color: #1e3a5f;
-  }
-  .geo-submit--active:hover {
-    background: #162d4a;
-  }
-  .geo-submit--disabled {
-    background: #eeebe3;
-    color: #aaa9a2;
-    border-color: #dedad2;
-    cursor: not-allowed;
-  }
+  .geo-submit--active { background: #1e3a5f; color: #ffffff; border-color: #1e3a5f; }
+  .geo-submit--active:hover { background: #162d4a; }
+  .geo-submit--disabled { background: #eeebe3; color: #aaa9a2; border-color: #dedad2; cursor: not-allowed; }
+  .geo-dark .geo-submit--active { background: #4a90d9; border-color: #4a90d9; }
+  .geo-dark .geo-submit--active:hover { background: #3a80c9; }
+  .geo-dark .geo-submit--disabled { background: #243044; color: #4a5a70; border-color: #2d3d54; }
+
   .geo-end-message {
     text-align: center;
     font-weight: 700;
     font-size: 1rem;
     padding: 10px 0 0;
   }
+  .geo-status-message {
+    text-align: center;
+    color: #7a8694;
+    font-size: 0.9rem;
+    padding: 24px 0;
+  }
+  .geo-dark .geo-status-message {
+    color: #8a9ab0;
+  }
 `;
+
+const difficultyTierStyles = {
+  1: { background: "#f9df6d", border: "#e0c84a", label: "#5a4a00" },
+  2: { background: "#a0c35a", border: "#7da33a", label: "#2a3d10" },
+  3: { background: "#6aacdb", border: "#4a8cbb", label: "#0d2a40" },
+  4: { background: "#c084d4", border: "#a060b4", label: "#2d0a40" },
+};
+
+const maxAllowedMistakes = 4;
 
 // ---------------------------------------------------------------------------
 // HELPER FUNCTIONS
 // ---------------------------------------------------------------------------
-
 const buildShuffledTileList = (groups) => {
   const allTiles = groups.flatMap((group) =>
     group.countryNames.map((countryName) => ({
       countryName,
       groupId: group.groupId,
+      tileKey: `${group.groupId}-${countryName}`,
     }))
   );
   const shuffledTiles = [...allTiles];
@@ -228,12 +280,34 @@ const countClosestGroupOverlap = (selectedCountryNames, groups) => {
 // MAIN COMPONENT
 // ---------------------------------------------------------------------------
 export const GeoConnectionsGrid = () => {
+  const [puzzleGroups, setPuzzleGroups] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [tileList, setTileList] = useState([]);
   const [selectedCountryNames, setSelectedCountryNames] = useState([]);
   const [solvedGroupIds, setSolvedGroupIds] = useState([]);
   const [mistakeCount, setMistakeCount] = useState(0);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [gameStatus, setGameStatus] = useState("playing");
+
+  // isDarkMode defaults to false (light mode).
+  // We also check localStorage on mount so the player's preference
+  // is remembered across page refreshes.
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem("geo-dark-mode") === "true";
+  });
+
+  // Persist the preference to localStorage whenever it changes.
+  // WHY useEffect here instead of inside the toggle handler?
+  // Keeping side effects in useEffect means the handler stays pure —
+  // it only updates state. The effect reacts to that change separately.
+  useEffect(() => {
+    localStorage.setItem("geo-dark-mode", isDarkMode);
+  }, [isDarkMode]);
+
+  const handleToggleDarkMode = () => {
+    setIsDarkMode((previous) => !previous);
+  };
 
   // Inject component styles once on mount
   useEffect(() => {
@@ -246,8 +320,25 @@ export const GeoConnectionsGrid = () => {
     return () => styleTag.remove();
   }, []);
 
+  // Fetch today's puzzle from the Flask API
   useEffect(() => {
-    setTileList(buildShuffledTileList(puzzleGroups));
+    const fetchTodaysPuzzle = async () => {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        const response = await fetch(`${backendUrl}/api/puzzle/today`);
+        if (!response.ok) {
+          throw new Error(`No puzzle found for today (${response.status})`);
+        }
+        const puzzleData = await response.json();
+        setPuzzleGroups(puzzleData.groups);
+        setTileList(buildShuffledTileList(puzzleData.groups));
+      } catch (error) {
+        setFetchError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTodaysPuzzle();
   }, []);
 
   const isCountryInGroup = (countryName, groupId) => {
@@ -258,7 +349,6 @@ export const GeoConnectionsGrid = () => {
   const handleTileClick = (countryName) => {
     if (gameStatus !== "playing") return;
     if (solvedGroupIds.some((id) => isCountryInGroup(countryName, id))) return;
-
     const isAlreadySelected = selectedCountryNames.includes(countryName);
     if (isAlreadySelected) {
       setSelectedCountryNames((prev) => prev.filter((n) => n !== countryName));
@@ -270,28 +360,21 @@ export const GeoConnectionsGrid = () => {
 
   const handleSubmitGuess = () => {
     if (selectedCountryNames.length !== 4) return;
-
     const matchedGroupId = findMatchingGroupId(selectedCountryNames, puzzleGroups);
-
     if (matchedGroupId) {
       const newSolvedGroupIds = [...solvedGroupIds, matchedGroupId];
       setSolvedGroupIds(newSolvedGroupIds);
       setSelectedCountryNames([]);
       setFeedbackMessage("Correct!");
-      if (newSolvedGroupIds.length === puzzleGroups.length) {
-        setGameStatus("won");
-      }
+      if (newSolvedGroupIds.length === puzzleGroups.length) setGameStatus("won");
     } else {
       const overlapCount = countClosestGroupOverlap(selectedCountryNames, puzzleGroups);
       const newMistakeCount = mistakeCount + 1;
       setMistakeCount(newMistakeCount);
       setFeedbackMessage(overlapCount === 3 ? "One away..." : "Not quite.");
       setSelectedCountryNames([]);
-      if (newMistakeCount >= maxAllowedMistakes) {
-        setGameStatus("lost");
-      }
+      if (newMistakeCount >= maxAllowedMistakes) setGameStatus("lost");
     }
-
     setTimeout(() => setFeedbackMessage(""), 2000);
   };
 
@@ -300,94 +383,105 @@ export const GeoConnectionsGrid = () => {
   );
 
   return (
-    <div className="geo-wrapper">
+    <div className={`geo-wrapper${isDarkMode ? " geo-dark" : ""}`}>
       <div className="geo-card">
 
-        {/* Header */}
+        {/* Dark mode toggle — top right corner of the card */}
+        <button className="geo-toggle" onClick={handleToggleDarkMode}>
+          {isDarkMode ? "☀️ Light" : "🌙 Dark"}
+        </button>
+
         <h1 className="geo-title">🌍 GeoConnections</h1>
         <p className="geo-subtitle">
           Find four groups of four — each linked by a hidden geographic trait.
         </p>
         <hr className="geo-divider" />
 
-        {/* Solved group rows */}
-        {solvedGroupIds.map((groupId) => {
-          const group = puzzleGroups.find((g) => g.groupId === groupId);
-          const tierStyle = difficultyTierStyles[group.difficultyTier];
-          return (
-            <div
-              key={groupId}
-              className="geo-solved-row"
-              style={{ background: tierStyle.background, border: `2px solid ${tierStyle.border}` }}
-            >
-              <div className="geo-solved-label" style={{ color: tierStyle.label }}>
-                {group.traitLabel}
-              </div>
-              <div className="geo-solved-items" style={{ color: tierStyle.label }}>
-                {group.countryNames.join(", ")}
+        {isLoading && (
+          <p className="geo-status-message">Loading today's puzzle...</p>
+        )}
+        {fetchError && (
+          <p className="geo-status-message" style={{ color: "#a02020" }}>
+            {fetchError}
+          </p>
+        )}
+
+        {!isLoading && !fetchError && (
+          <>
+            {solvedGroupIds.map((groupId) => {
+              const group = puzzleGroups.find((g) => g.groupId === groupId);
+              const tierStyle = difficultyTierStyles[group.difficultyTier];
+              return (
+                <div
+                  key={groupId}
+                  className="geo-solved-row"
+                  style={{ background: tierStyle.background, border: `2px solid ${tierStyle.border}` }}
+                >
+                  <div className="geo-solved-label" style={{ color: tierStyle.label }}>
+                    {group.traitLabel}
+                  </div>
+                  <div className="geo-solved-items" style={{ color: tierStyle.label }}>
+                    {group.countryNames.join(", ")}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="row g-2 mb-3">
+              {remainingTiles.map((tile) => {
+                const isSelected = selectedCountryNames.includes(tile.countryName);
+                return (
+                  <div className="col-3" key={tile.tileKey}>
+                    <button
+                      className={`geo-tile${isSelected ? " geo-tile--selected" : ""}`}
+                      onClick={() => handleTileClick(tile.countryName)}
+                    >
+                      {tile.countryName}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <span className="geo-feedback">{feedbackMessage}</span>
+              <div className="d-flex align-items-center">
+                <span className="geo-mistakes-label">Mistakes:</span>
+                {Array.from({ length: maxAllowedMistakes }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={`geo-mistake-dot ${
+                      index < mistakeCount ? "geo-mistake-dot--used" : "geo-mistake-dot--empty"
+                    }`}
+                  />
+                ))}
               </div>
             </div>
-          );
-        })}
 
-        {/* 4×4 tile grid — Bootstrap row/col-3 gives us 4 columns */}
-        <div className="row g-2 mb-3">
-          {remainingTiles.map((tile) => {
-            const isSelected = selectedCountryNames.includes(tile.countryName);
-            return (
-              <div className="col-3" key={tile.countryName}>
-                <button
-                  className={`geo-tile${isSelected ? " geo-tile--selected" : ""}`}
-                  onClick={() => handleTileClick(tile.countryName)}
-                >
-                  {tile.countryName}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Feedback + mistake tracker */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <span className="geo-feedback">{feedbackMessage}</span>
-          <div className="d-flex align-items-center">
-            <span style={{ fontSize: "0.75rem", color: "#7a8694", marginRight: "6px" }}>
-              Mistakes:
-            </span>
-            {Array.from({ length: maxAllowedMistakes }).map((_, index) => (
-              <span
-                key={index}
-                className={`geo-mistake-dot ${
-                  index < mistakeCount ? "geo-mistake-dot--used" : "geo-mistake-dot--empty"
+            {gameStatus === "playing" && (
+              <button
+                className={`geo-submit ${
+                  selectedCountryNames.length === 4
+                    ? "geo-submit--active"
+                    : "geo-submit--disabled"
                 }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Submit / end state */}
-        {gameStatus === "playing" && (
-          <button
-            className={`geo-submit ${
-              selectedCountryNames.length === 4
-                ? "geo-submit--active"
-                : "geo-submit--disabled"
-            }`}
-            onClick={handleSubmitGuess}
-            disabled={selectedCountryNames.length !== 4}
-          >
-            Submit Guess
-          </button>
-        )}
-        {gameStatus === "won" && (
-          <p className="geo-end-message" style={{ color: "#2a6e2a" }}>
-            Solved it! Well played. 🎉
-          </p>
-        )}
-        {gameStatus === "lost" && (
-          <p className="geo-end-message" style={{ color: "#a02020" }}>
-            Out of guesses. Better luck on the next puzzle.
-          </p>
+                onClick={handleSubmitGuess}
+                disabled={selectedCountryNames.length !== 4}
+              >
+                Submit Guess
+              </button>
+            )}
+            {gameStatus === "won" && (
+              <p className="geo-end-message" style={{ color: "#2a6e2a" }}>
+                Solved it! Well played. 🎉
+              </p>
+            )}
+            {gameStatus === "lost" && (
+              <p className="geo-end-message" style={{ color: "#a02020" }}>
+                Out of guesses. Better luck on the next puzzle.
+              </p>
+            )}
+          </>
         )}
 
       </div>

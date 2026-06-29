@@ -22,7 +22,7 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-@api.route('/api/puzzle/today', methods=['GET'])
+@api.route('/puzzle/today', methods=['GET'])
 def get_todays_puzzle():
     todays_date = date.today()
 
@@ -45,7 +45,7 @@ def get_todays_puzzle():
 # API for fetching any puzzle by its ID. Used during development to test seeded puzzles without having to match with today's date. 
 # Example: GET /api/puzzle/1
 
-@api.route('/api/puzzle/<int:puzzle_id>', methods=['GET'])
+@api.route('/puzzle/<int:puzzle_id>', methods=['GET'])
 def get_puzzle_by_id(puzzle_id):
     puzzle = db.session.get(Puzzle, puzzle_id)
 
