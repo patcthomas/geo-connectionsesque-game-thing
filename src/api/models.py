@@ -67,8 +67,7 @@ class Puzzle(db.Model):
 # One of the four categories within a puzzle. Holds the trait label (the
 # thing the four items have in common) and the difficulty tier (1-4).
 #
-# WHY store difficulty_tier explicitly instead of deriving it from position?
-# Explicit is better than implicit. If you ever reorder groups or skip a
+# WHY store difficulty_tier explicitly instead of deriving it from position? If you ever reorder groups or skip a
 # tier for a special puzzle, the stored number is the source of truth.
 class PuzzleGroup(db.Model):
     __tablename__ = "puzzle_group"
@@ -76,8 +75,8 @@ class PuzzleGroup(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # ForeignKey links this group back to its parent puzzle.
-    # Mapped[int] (not Optional) means this is required — a group with
-    # no puzzle is meaningless data.
+    # Mapped[int] (not Optional) means this is required.
+
     puzzle_id: Mapped[int] = mapped_column(ForeignKey("puzzle.id"))
 
     # The text revealed when the player solves this group.
@@ -116,12 +115,7 @@ class PuzzleGroup(db.Model):
 # ---------------------------------------------------------------------------
 # A single tile in the grid — one country, city, or place name.
 # Each item belongs to exactly one group.
-#
-# WHY not just store a JSON array of names on PuzzleGroup?
-#   1. Queryability — with a proper table you can search across all puzzles
-#      ("has Bolivia appeared before?") as your puzzle bank grows.
-#   2. Integrity — the database enforces that every item belongs to a valid
-#      group. A JSON blob gives you none of that.
+
 class PuzzleItem(db.Model):
     __tablename__ = "puzzle_item"
 
@@ -130,7 +124,7 @@ class PuzzleItem(db.Model):
     group_id: Mapped[int] = mapped_column(ForeignKey("puzzle_group.id"))
 
     # The text shown on the tile. e.g. "Bolivia", "Washington D.C."
-    # Keep it short enough to fit a square tile comfortably.
+    # Should be kept short enough to fit within the tile
     display_name: Mapped[str] = mapped_column(String(100))
 
     group: Mapped["PuzzleGroup"] = relationship(back_populates="items")
