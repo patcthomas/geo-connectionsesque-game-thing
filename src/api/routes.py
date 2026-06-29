@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, Puzzle, PuzzleGroup, PuzzleItem
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
+from datetime import date
 
 api = Blueprint('api', __name__)
 
@@ -20,3 +21,37 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+@api.route('/api/puzzle/today', methods=['GET'])
+def get_todays_puzzle():
+    todays_date = date.today()
+
+    # .first() returns the puzzle or None. it doesn't raise an exception
+    # if nothing is found, which lets us handle the 404 case cleanly below.
+
+    puzzle = Puzzle.query.filter_by(publish_date = todays_date).first()
+    
+    # If no puzzle exists for today, this will return a clear error on the frontend
+    # can catch and display a "no puzzle today" message instead of crashing.
+
+    if puzzle is None:
+        return jsonify({
+            "error": "Unfortunately, there is no puzzle today.",
+            "date": todays_date.isoformat()
+        }), 404
+    
+    return jsonify(puzzle.serialize()), 200
+
+# API for fetching any puzzle by its ID. Used during development to test seeded puzzles without having to match with today's date. 
+# Example: GET /api/puzzle/1
+
+@api.route('/api/puzzle/<int:puzzle_id>', methods=['GET'])
+def get_puzzle_by_id(puzzle_id):
+    puzzle = db.session.get(Puzzle, puzzle_id)
+
+    if puzzle is None:
+        return jsonify({
+            "error": f"No puzzle found with id {puzzle_id}."
+        }), 404
+
+    return jsonify(puzzle.serialize()), 200
